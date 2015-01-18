@@ -1,0 +1,16 @@
+# Backup files.
+
+~*
+*~
+
+# Binary files.
+*.o
+*.a
+*.a.*
+*.so
+*.so.*
+*.out
+
+# Hardcoded executables.
+#test
+#profile
