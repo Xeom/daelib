@@ -32,16 +32,28 @@ AR=ar
 LN=ln
 
 # Flags.
-LIBS=-
+LIB=dae
+LIBFILE=lib$(LIB)
+LIBNAME=$(LIB)lib
+LIBS=
 
-CC_FLAGS= -Iinclude -g -Wall
+SRC=src
+INC=$(SRC)/include
+TEST=$(SRC)/test
+
+CC_FLAGS= -I$(INC) -g -Wall
 OBJ_FLAGS=$(CC_FLAGS) -c -fPIC
 LIB_FLAGS=$(CC_FLAGS) $(LIBS) -shared -fPIC
 PRG_FLAGS=$(CC_FLAGS) $(LIBS)
-LIB_PRGRM=$(PRG_FLAGS) -L. -ldios
+LIB_PRGRM=$(PRG_FLAGS) -L. -l$(LIB)
 
-LIB_OBJS=#src/vector.o src/hashtable.o src/log.o src/loggers.o src/hash.o src/hashtable_vector.o
-PUB_HEADERS=#include/store.h include/stores.h include/hash.h
+LIB_OBJS_REL= vector.o hashtable.o log.o loggers.o hashtable_vector.o
+LIB_OBJS= $(addprefix $(SRC)/, $(LIB_OBJS_REL))
+
+TEST_OBJS_REL = profile.o test.o
+TEST_OBJS= $(addprefix $(TEST)/, $(TEST_OBJS_REL))
+
+PUB_HEADERS= assert.h log.h loggers.h vector.h hashtable.h hashtable_backend.h
 
 # Default .o rule:
 %.o: %.c
@@ -49,62 +61,59 @@ PUB_HEADERS=#include/store.h include/stores.h include/hash.h
 	@$(CC) $(OBJ_FLAGS) $< -o $@
 
 # Source and header deps.
-#src/dassert.h: src/log.h src/loggers.h
-#include/hash.h:
-#src/hash.o: src/dassert.h include/hash.h
-#src/hashtable.h:
-#src/hashtable.o: src/dassert.h src/hashtable.h src/hashtable_backend.h
-#src/hashtable_backend.h: src/hashtable.h
-#src/hashtable_vector.c: src/hashtable_backend.h src/vector.h src/dassert.h
-#src/log.h:
-#src/log.o: src/dassert.h src/log.h src/vector.h
-#src/loggers.h: src/log.h
-#src/loggers.o: src/dassert.h src/log.h src/loggers.h
-#src/vector.h:
-#src/vector.o: src/dassert.h src/vector.h
+$(INC)/assert.h: $(INC)/log.h $(INC)/loggers.h
+$(INC)/hashtable.h:
+$(SRC)/hashtable.o: $(INC)/assert.h $(INC)/hashtable.h $(INC)/hashtable_backend.h
+$(INC)/hashtable_backend.h: $(INC)/hashtable.h
+$(SRC)/hashtable_vector.o: $(INC)/hashtable_backend.h $(INC)/vector.h $(INC)/assert.h
+$(INC)/log.h:
+$(SRC)/log.o: $(INC)/assert.h $(INC)/log.h $(INC)/vector.h
+$(INC)/loggers.h: $(INC)/log.h
+$(SRC)/loggers.o: $(INC)/assert.h $(INC)/log.h $(INC)/loggers.h
+$(INC)/vector.h:
+$(SRC)/vector.o: $(INC)/assert.h $(INC)/vector.h
 
-#src/profile.o: src
-#src/test.o: src
+$(TEST)/profile.o: $(SRC) $(INC)
+$(TEST)/test.o: $(SRC) $(INC)
 
 
 # The default behaviour is to build the libraries and examples.
-all: #libdae.so libdae.a test profile
+all: $(LIBFILE).so $(LIBFILE).a test profile
 
 # Shared and static libraries:
-libdae.so.$(VERSION): $(LIB_OBJS)
-	@echo "Building daelib shared library."
+$(LIBFILE).so.$(VERSION): $(LIB_OBJS)
+	@echo "Building $(LIBNAME) shared library."
 	@$(CC) $(LIB_FLAGS) $(LIB_OBJS) -o $@
 
-libdae.so: libdaeso.$(VERSION)
+$(LIBFILE).so: $(LIBFILE).so.$(VERSION)
 	@echo "Linking $@ to $@.$(VERSION)."
 	@$(LN) -fs $@.$(VERSION) $@
 
-libdae.a.$(VERSION): $(LIB_OBJS)
-	@echo "Building daelib static library."
+$(LIBFILE).a.$(VERSION): $(LIB_OBJS)
+	@echo "Building $(LIBNAME) static library."
 	@$(AR) rcs $@ $(LIB_OBJS)
 
-libdae.a: libdae.a.$(VERSION)
+$(LIBFILE).a: $(LIBFILE).a.$(VERSION)
 	@echo "Linking $@ to $@.$(VERSION)."
 	@$(LN) -fs $@.$(VERSION) $@
 
 # Programs.
-#test: src/test.o libdae.a
-#	@echo "Building test program."
-#	@$(CC) $(PRG_FLAGS) $< libdae.a -o $@
+test: $(TEST)/test.o $(LIBFILE).a
+	@echo "Building test program."
+	@$(CC) $(PRG_FLAGS) $< $(LIBFILE).a -o $@
 
-#profile: src/profile.o libdae.a
-#	@echo "Building profiling program."
-#	@$(CC) $(PRG_FLAGS) $< libdae.a -o $@
+profile: $(TEST)/profile.o $(LIBFILE).a
+	@echo "Building profiling program."
+	@$(CC) $(PRG_FLAGS) $< $(LIBFILE).a -o $@
 
-#run: test profile
-#	@echo "Running ./test and ./profile."
-#	@./test
-#	@./profile
+run: test profile
+	@echo "Running ./test and ./profile."
+	@./test
+	@./profile
 
 clean:
 	@echo "Cleaning repository."
-	rm -f $(LIB_OBJS) libdae.* #src/test.o src/profile.o
+	rm -f $(LIB_OBJS) $(LIBFILE).* $(TEST)/test.o $(TEST)/profile.o
 
 # Fake targets, not named after the output.
-.PHONY: help targets all all_proxy clean
-
+.PHONY: help targets all all_proxy run clean
