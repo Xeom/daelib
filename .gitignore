@@ -11,6 +11,6 @@
 *.so.*
 *.out
 
-# Hardcoded executables.
-/test
-/profile
+# Binary paths.
+bin/
+lib/
