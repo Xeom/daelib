@@ -36,6 +36,20 @@ void _dvec_print_int_map(dvec vec);
 #endif // 0
 
 
+/* Default error behaviour. */
+#ifndef IINTRA /* When given a bad vector. */
+#define IINTRA DSTRIP
+#endif /* IINTRA */
+
+#ifndef ICALLER /* When fed bad data. */
+#define ICALLER DLOG
+#endif /* ICALLER */
+
+#ifndef IALLOC /* When malloc() fails. */
+#define IALLOC DLOG
+#endif /* IALLOC */
+
+
 /* Smears bits to the right.
  * Round up to the next 2^n-1.
  * Returns -1 on negative.
@@ -88,7 +102,7 @@ static int _dvec_resize(dvec vec, size_t newsize) {
 	void *new_data = NULL;
 	new_data = (void*) realloc(vec->data, new_allocated);
 
-	DASSERT(new_data != NULL || new_allocated == 0,
+	DASSERT(new_data != NULL || new_allocated == 0, IALLOC,
 	        "Failed to realloc vector.",
 		return 1;
 		);
@@ -100,18 +114,15 @@ static int _dvec_resize(dvec vec, size_t newsize) {
 }
 
 /* Determine if a vector is valid.
+ * Assumes vec is not NULL.
  * If valid return nonzero. Else return 0.
  */
 static int _dvec_valid(dvec vec) {
 
-	/* Check that the pointer is valid,
-	 * that you have enough allocated memory,
-	 * and that you (if you have allocated memory)
-	 * the data is not NULL.
+	/* Chect that you have enough allocated memory,
+	 * and that (if you have allocated memory) the
+	 * data is not NULL.
 	 */
-	if (vec == NULL)
-		return 0;
-
 	if (vec->elem_size * vec->elem_count > vec->allocated)
 		return 0;
 
@@ -185,7 +196,7 @@ dvec dvec_init(size_t elem_size) {
 	 */
 	dvec new_vec = (dvec) malloc(sizeof(struct daelib_vector));
 
-	DASSERT(new_vec != NULL, "Failed to allocate new vector.",
+	DASSERT(new_vec != NULL, IALLOC, "Failed to allocate new vector.",
 		return NULL;
 		);
 
@@ -208,7 +219,11 @@ int dvec_kill(dvec vec) {
 	 * free non-NULL data, invalidate
 	 * fields, free the struct.
 	 */
-	DASSERT(_dvec_valid(vec), "Given invalid vector.",
+	DASSERT(vec != NULL, ICALLER, "Given NULL vector.",
+		return 1;
+		);
+
+	DASSERT(_dvec_valid(vec), IINTRA, "Given invalid vector.",
 		return 1;
 		);
 
@@ -232,13 +247,17 @@ dvec dvec_copy(dvec vec) {
 	 * allocate vector, ?(allocate
 	 * memory, copy memory,) return.
 	 */
-	DASSERT(_dvec_valid(vec), "Given invalid vector.",
+	DASSERT(vec != NULL, ICALLER, "Given NULL vector.",
+		return NULL;
+		);
+
+	DASSERT(_dvec_valid(vec), IINTRA, "Given invalid vector.",
 		return NULL;
 		);
 
 	dvec t= (dvec) malloc(sizeof(struct daelib_vector));
 
-	DASSERT(t != NULL, "Failed to allocate new vector.",
+	DASSERT(t != NULL, IALLOC, "Failed to allocate new vector.",
 		return NULL;
 		);
 
@@ -252,7 +271,7 @@ dvec dvec_copy(dvec vec) {
 
 	t->data = malloc(vec->allocated);
 
-	DASSERT(t->data != NULL, "Failed to allocate new vector data.",
+	DASSERT(t->data != NULL, IALLOC, "Failed to allocate new vector data.",
 		free(t);
 		return NULL;
 		);
@@ -272,7 +291,11 @@ int dvec_push(dvec vec, void *elem) {
 	 * vector, call _dvec_insert,
 	 * return.
 	 */
-	DASSERT(_dvec_valid(vec), "Given invalid vector.",
+	DASSERT(vec != NULL, ICALLER, "Given NULL vector.",
+		return 1;
+		);
+
+	DASSERT(_dvec_valid(vec), IINTRA, "Given invalid vector.",
 		return 1;
 		);
 
@@ -289,11 +312,15 @@ void *dvec_peek(dvec vec) {
 	 * check if size > 0,
 	 * return the last element.
 	 */
-	DASSERT(_dvec_valid(vec), "Given invalid vector.",
+	DASSERT(vec != NULL, ICALLER, "Given NULL vector.",
 		return NULL;
 		);
 
-	DASSERT(vec->elem_count != 0, "No elements to peek.",
+	DASSERT(_dvec_valid(vec), IINTRA, "Given invalid vector.",
+		return NULL;
+		);
+
+	DASSERT(vec->elem_count != 0, ICALLER, "No elements to peek.",
 		return NULL;
 		);
 
@@ -311,11 +338,15 @@ int dvec_pop(dvec vec) {
 	 * Check if size > 0,
 	 * delete range, return.
 	 */
-	DASSERT(_dvec_valid(vec), "Given invalid vector.",
+	DASSERT(vec != NULL, ICALLER, "Given NULL vector.",
 		return 1;
 		);
 
-	DASSERT(vec->elem_count > 0, "No elements to pop.",
+	DASSERT(_dvec_valid(vec), IINTRA, "Given invalid vector.",
+		return 1;
+		);
+
+	DASSERT(vec->elem_count > 0, ICALLER, "No elements to pop.",
 		return 1;
 		);
 
@@ -332,7 +363,11 @@ size_t dvec_size(dvec vec) {
 	/* Check if vector is valid,
 	 * return the number of elements.
 	 */
-	DASSERT(_dvec_valid(vec), "Given invalid vector.",
+	DASSERT(vec != NULL, ICALLER, "Given NULL vector.",
+		return 0;
+		);
+
+	DASSERT(_dvec_valid(vec), IINTRA, "Given invalid vector.",
 		return 0;
 		);
 
@@ -347,7 +382,11 @@ size_t dvec_elem_size(dvec vec) {
 	/* Check if the vector is valid,
 	 * return the element size.
 	 */
-	DASSERT(_dvec_valid(vec), "Given invalid vector.",
+	DASSERT(vec != NULL, ICALLER, "Given NULL vector.",
+		return 0;
+		);
+
+	DASSERT(_dvec_valid(vec), IINTRA, "Given invalid vector.",
 		return 0;
 		);
 
@@ -363,11 +402,15 @@ void *dvec_get(dvec vec, size_t index) {
 	 * check that the index is good,
 	 * return the data.
 	 */
-	DASSERT(_dvec_valid(vec), "Given invalid vector.",
+	DASSERT(vec != NULL, ICALLER, "Given NULL vector.",
 		return NULL;
 		);
 
-	DASSERT(index < vec->elem_count, "Index is out of bounds.",
+	DASSERT(_dvec_valid(vec), IINTRA, "Given invalid vector.",
+		return NULL;
+		);
+
+	DASSERT(index < vec->elem_count, ICALLER, "Index is out of bounds.",
 		return NULL;
 		);
 
@@ -383,11 +426,15 @@ int dvec_put(dvec vec, void *elem, size_t index) {
 	 * check that index is valid,
 	 * call dvec_insert.
 	 */
-	DASSERT(_dvec_valid(vec), "Given invalid vector.",
+	DASSERT(vec != NULL, ICALLER, "Given NULL vector.",
 		return 1;
 		);
 
-	DASSERT(index > vec->elem_count, "Index is out of bounds.",
+	DASSERT(_dvec_valid(vec), IINTRA, "Given invalid vector.",
+		return 1;
+		);
+
+	DASSERT(index > vec->elem_count, ICALLER, "Index is out of bounds.",
 		return 1;
 		);
 
@@ -403,11 +450,15 @@ int dvec_rm(dvec vec, size_t index) {
 	 * check that index is valid,
 	 * call _dvec_delete.
 	 */
-	DASSERT(_dvec_valid(vec), "Given invalid vector.",
+	DASSERT(vec != NULL, ICALLER, "Given NULL vector.",
 		return 1;
 		);
 
-	DASSERT(index < vec->elem_count, "Index is out of bounds.",
+	DASSERT(_dvec_valid(vec), IINTRA, "Given invalid vector.",
+		return 1;
+		);
+
+	DASSERT(index < vec->elem_count, ICALLER, "Index is out of bounds.",
 		return 1;
 		);
 
@@ -426,19 +477,27 @@ int dvec_join(dvec dst, dvec src, size_t index) {
 	 * check that they are compatable,
 	 * call _dvec_insert.
 	 */
-	DASSERT(_dvec_valid(dst), "Given invalid destination vector.",
+	DASSERT(dst != NULL, ICALLER, "Given NULL destination vector.",
 		return 1;
 		);
 
-	DASSERT(_dvec_valid(src), "Given invalid source vector.",
+	DASSERT(_dvec_valid(dst), IINTRA, "Given invalid destination vector.",
 		return 1;
 		);
 
-	DASSERT(dst->elem_size == src->elem_size, "Element sizes do not match.",
+	DASSERT(src != NULL, ICALLER, "Given NULL source vector.",
 		return 1;
 		);
 
-	DASSERT(index <= dst->elem_count, "Index is out of bounds.",
+	DASSERT(_dvec_valid(src), IINTRA, "Given invalid source vector.",
+		return 1;
+		);
+
+	DASSERT(dst->elem_size == src->elem_size, ICALLER, "Element sizes do not match.",
+		return 1;
+		);
+
+	DASSERT(index <= dst->elem_count, ICALLER, "Index is out of bounds.",
 		return 1;
 		);
 
@@ -455,11 +514,15 @@ int dvec_insert(dvec dst, size_t count, void *elems, size_t index) {
 	 * verify index, make room, shuffle
 	 * around, copy, adjust, return.
 	 */
-	DASSERT(_dvec_valid(dst), "Given invalid vector.",
+	DASSERT(dst != NULL, ICALLER, "Given NULL vector.",
+		return 1;
+		);
+
+	DASSERT(_dvec_valid(dst), IINTRA, "Given invalid vector.",
 	        return 1;
 		);
 
-	DASSERT(index <= dst->elem_count, "Index is out of bounds.",
+	DASSERT(index <= dst->elem_count, ICALLER, "Index is out of bounds.",
 		return 1;
 		);
 
@@ -475,14 +538,18 @@ int dvec_delete(dvec dst, size_t start, size_t end) {
 	/* Verify vector, indicies,
 	 * call remove, return.
 	 */
-	DASSERT(_dvec_valid(dst), "Given invalid vector.",
+	DASSERT(dst != NULL, ICALLER, "Given NULL vector.",
 		return 1;
 		);
 
-	DASSERT(end <= dst->elem_count,	"End is out of bounds.",
+	DASSERT(_dvec_valid(dst), IINTRA, "Given invalid vector.",
 		return 1;
 		);
-	DASSERT(start <= end, "Start comes after end.",
+
+	DASSERT(end <= dst->elem_count,	ICALLER, "End is out of bounds.",
+		return 1;
+		);
+	DASSERT(start <= end, ICALLER, "Start comes after end.",
 		return 1;
 		);
 
@@ -499,7 +566,11 @@ dvec_it dvec_begin(dvec vec) {
 	/* Verify vector, verify
 	 * size, return first index.
 	 */
-	DASSERT(_dvec_valid(vec), "Given invalid vector.",
+	DASSERT(vec != NULL, ICALLER, "Given NULL vector.",
+		return NULL;
+		);
+
+	DASSERT(_dvec_valid(vec), IINTRA, "Given invalid vector.",
 		return (dvec_it) NULL;
 		);
 
@@ -517,7 +588,11 @@ dvec_it dvec_end(dvec vec) {
 	/* Verify vector, verify
 	 * size, return last index.
 	 */
-	DASSERT(_dvec_valid(vec), "Given invalid vector.",
+	DASSERT(vec != NULL, ICALLER, "Given NULL vector.",
+		return NULL;
+		);
+
+	DASSERT(_dvec_valid(vec), IINTRA, "Given invalid vector.",
 		return (dvec_it) NULL;
 		);
 
@@ -538,13 +613,17 @@ dvec_it dvec_next(dvec vec, dvec_it it) {
 	 * increment iterator, if at end,
 	 * invalidate, return.
 	 */
-	DASSERT(_dvec_valid(vec), "Given invalid vector.",
+	DASSERT(vec != NULL, ICALLER, "Given NULL vector.",
+		return NULL;
+		);
+
+	DASSERT(_dvec_valid(vec), IINTRA, "Given invalid vector.",
 		return (dvec_it) NULL;
 		);
 
 	size_t i = (size_t) it;
 
-	DASSERT(i <= vec->elem_count, "Given invalid iterator.",
+	DASSERT(i <= vec->elem_count, ICALLER, "Given invalid iterator.",
 		return (dvec_it) NULL;
 		);
 
@@ -566,13 +645,17 @@ dvec_it dvec_prev(dvec vec, dvec_it it) {
 	 * decrement iterator, if at invalid,
 	 * go to last index.
 	 */
-	DASSERT(_dvec_valid(vec), "Given invalid vector.",
+	DASSERT(vec != NULL, ICALLER, "Given NULL vector.",
+		return NULL;
+		);
+
+	DASSERT(_dvec_valid(vec), IINTRA, "Given invalid vector.",
 		return (dvec_it) NULL;
 		);
 
 	size_t i = (size_t) it;
 
-	DASSERT(i <= vec->elem_count, "Given invalid iterator.",
+	DASSERT(i <= vec->elem_count, ICALLER, "Given invalid iterator.",
 		return (dvec_it) NULL;
 		);
 
@@ -590,13 +673,17 @@ void *dvec_iget(dvec vec, dvec_it it) {
 	/* Verify vector, iterator,
 	 * get element.
 	 */
-	DASSERT(_dvec_valid(vec), "Given invalid vector",
+	DASSERT(vec != NULL, ICALLER, "Given NULL vector.",
+		return NULL;
+		);
+
+	DASSERT(_dvec_valid(vec), ICALLER, "Given invalid vector",
 		return NULL;
 		);
 
 	size_t index = (size_t) it - 1;
 
-	DASSERT(index < vec->elem_count, "Given invalid iterator.",
+	DASSERT(index < vec->elem_count, ICALLER, "Given invalid iterator.",
 		return NULL;
 		);
 

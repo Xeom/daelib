@@ -21,7 +21,7 @@
 #include "loggers.h"
 
 
-#define CLOCK CLOCK_PROCESS_CPUTIME_ID
+#define CLOCK CLOCK_MONOTONIC
 
 void profile_init(void);
 void profile_kill(void);

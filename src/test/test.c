@@ -95,7 +95,7 @@ void test_hashtable(void) {
 
 	dlog(EINFO, "test/hashtable", "Starting hashtable tests.");
 	dhtable table = dhtable_init((1 << 1), sizeof(int), sizeof(int), NULL, NULL, NULL);
-	DASSERT(table != NULL, "Failed to init table.",
+	DASSERT(table != NULL, DLOG, "Failed to init table.",
 		return;
 		);
 

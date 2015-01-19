@@ -24,6 +24,12 @@
 #include <string.h>
 
 
+/* Default error behaviour. */
+#ifndef ICALLER /* When fed bad data. */
+#define ICALLER DLOG
+#endif /* ICALLER */
+
+
 /* stderr logger. */
 void *stderr_logger(void *ctx, enum log_priority priority,
                     const char *path, const char *message) {
@@ -158,7 +164,7 @@ void  logfile_logger_kill(void *ctx) {
 	/* If file is NULL, return.
 	 * Else, close, return.
 	 */
-	DASSERT(ctx != NULL, "Given an invalid context.",
+	DASSERT(ctx != NULL, ICALLER, "Given an invalid context.",
 		return;
 		);
 
@@ -178,7 +184,7 @@ void *logfile_logger(void *ctx, enum log_priority priority,
 	 * Prints the entry to the logfile,
 	 * then returns. Silent failure.
 	 */
-	DASSERT(ctx != NULL, "Given an invalid context.",
+	DASSERT(ctx != NULL, ICALLER, "Given an invalid context.",
 		return NULL;
 		);
 

@@ -30,6 +30,24 @@ struct daelib_hashtable {
 };
 
 
+/* Default error behaviour. */
+#ifndef ICALLER /* When fed bad data. */
+#define ICALLER DLOG
+#endif /* ICALLER */
+
+#ifndef IINTRA /* When table is invalid. */
+#define IINTRA DSTRIP
+#endif /* IINTRA */
+
+#ifndef IALLOC /* When malloc() fails. */
+#define IALLOC DLOG
+#endif /* IALLOC */
+
+#ifndef IBACKEND /* When the backend fails. */
+#define IBACKEND DLOG
+#endif /* IBACKEND */
+
+
 /* Determine if a hashtable is valid.
  * If valid return nonzero. Else return zero.
  */
@@ -38,9 +56,6 @@ static int _dhtable_valid(dhtable table) {
 	/* Check for valid keysize, functors,
 	 * and buckets.
 	 */
-	if (table == NULL)
-		return 0;
-
 	if (table->backend == NULL)
 		return 0;
 
@@ -102,11 +117,11 @@ int _dhtable_key_cmp(size_t key_size, void *keyl, void *keyr) {
 	 * compare the block of memory,
 	 * return.
 	 */
-	DASSERT(keyl != NULL, "Given invalid left key.",
+	DASSERT(keyl != NULL, ICALLER, "Given invalid left key.",
 		return -1;
 		);
 
-	DASSERT(keyr != NULL, "Given invalid right key.",
+	DASSERT(keyr != NULL, ICALLER, "Given invalid right key.",
 		return -1;
 		);
 
@@ -120,7 +135,7 @@ int _dhtable_key_hsh(size_t key_size, void *key) {
 	 * return the first part of the
 	 * key as an int.
 	 */
-	DASSERT(key != NULL, "Given invalid key.",
+	DASSERT(key != NULL, ICALLER, "Given invalid key.",
 		return 0;
 		);
 
@@ -138,21 +153,21 @@ dhtable dhtable_init(size_t buckets, size_t key_size, size_t val_size,
 	 * buckets, clean buckets, deal with defaults,
 	 * set parameters, return.
 	 */
-	DASSERT(key_size != 0, "Given bad key_size.",
+	DASSERT(key_size != 0, ICALLER, "Given bad key_size.",
 		return NULL;
 		);
 
-	DASSERT(buckets != 0, "Given bad bucket count.",
+	DASSERT(buckets != 0, ICALLER, "Given bad bucket count.",
 		return NULL;
 		);
 
 	dhtable new_table = (dhtable) malloc(sizeof(struct daelib_hashtable));
-	DASSERT(new_table != NULL, "Failed to allocate new table.",
+	DASSERT(new_table != NULL, IALLOC, "Failed to allocate new table.",
 		return NULL;
 		);
 
 	void **new_buckets = (void**) malloc(sizeof(void*) * buckets);
-	DASSERT(new_buckets != NULL, "Failed to allocate new buckets.",
+	DASSERT(new_buckets != NULL, IALLOC, "Failed to allocate new buckets.",
 		free(new_table);
 		return NULL;
 		);
@@ -188,7 +203,11 @@ int dhtable_kill(dhtable table) {
 	 * ignore failures, invalidate
 	 * members, free buckets, free table.
 	 */
-	DASSERT(_dhtable_valid(table), "Given invalid table.",
+	DASSERT(table != NULL, ICALLER, "Given NULL table.",
+		return 1;
+		);
+
+	DASSERT(_dhtable_valid(table), IINTRA, "Given invalid table.",
 		return 1;
 		);
 
@@ -202,7 +221,7 @@ int dhtable_kill(dhtable table) {
 			int t = table->backend->
 			        kill(&table->kv_data, table->buckets[i]);
 
-			DASSERT(t == 0, "Failed to kill bucket.",
+			DASSERT(t == 0, IBACKEND, "Failed to kill bucket.",
 				return 1;
 				);
 		}
@@ -233,7 +252,7 @@ static void _dhtable_kill_copy(dhtable table, void **buckets, int index) {
 		if (buckets[i] != NULL) {
 			int t = table->backend->kill(&table->kv_data, buckets[i]);
 
-			DASSERT(t == 0, "Failed to kill bucket.",
+			DASSERT(t == 0, IBACKEND, "Failed to kill bucket. Continuing.",
 				continue;
 				);
 		}
@@ -254,17 +273,21 @@ dhtable dhtable_copy(dhtable table) {
 	 * if fail, kill all previous buckets,
 	 * copy metadata, return.
 	 */
-	DASSERT(_dhtable_valid(table), "Given invalid table.",
+	DASSERT(table != NULL, ICALLER, "Given NULL table.",
+		return NULL;
+		);
+
+	DASSERT(_dhtable_valid(table), IINTRA, "Given invalid table.",
 		return NULL;
 		);
 
 	dhtable new_table = (dhtable) malloc(sizeof(struct daelib_hashtable));
-	DASSERT(new_table != NULL, "Failed to allocate new table.",
+	DASSERT(new_table != NULL, IALLOC, "Failed to allocate new table.",
 		return NULL;
 		);
 
 	void **new_buckets = malloc(sizeof(void*) * table->bucket_count);
-	DASSERT(new_buckets != NULL, "Failed to allocate new buckets.",
+	DASSERT(new_buckets != NULL, IALLOC, "Failed to allocate new buckets.",
 		free(new_buckets);
 		return NULL;
 		);
@@ -275,8 +298,8 @@ dhtable dhtable_copy(dhtable table) {
 	for (i = 0; i < count; i++) {
 
 		void *current_bucket = table->buckets[i];
-		void *new_bucket = NULL
-;
+		void *new_bucket = NULL;
+
 		if (current_bucket == NULL) {
 			new_buckets[i] = new_bucket;
 			continue;
@@ -285,8 +308,9 @@ dhtable dhtable_copy(dhtable table) {
 		new_bucket = table->backend->copy(&table->kv_data,
 		                               current_bucket);
 
-		DASSERT(new_bucket != NULL, "Failed to copy a bucket.",
+		DASSERT(new_bucket != NULL, IBACKEND, "Failed to copy a bucket.",
 			_dhtable_kill_copy(table, new_buckets, i - 1);
+			return NULL;
 			);
 
 		new_buckets[i] = new_bucket;
@@ -309,11 +333,15 @@ void *dhtable_get(dhtable table, void *key) {
 	 * check the bucket, call the
 	 * backend, return.
 	 */
-	DASSERT(_dhtable_valid(table), "Given invalid table.",
+	DASSERT(table != NULL, ICALLER, "Given NULL table.",
 		return NULL;
 		);
 
-	DASSERT(key != NULL, "Given invalid key.",
+	DASSERT(_dhtable_valid(table), IINTRA, "Given invalid table.",
+		return NULL;
+		);
+
+	DASSERT(key != NULL, ICALLER, "Given invalid key.",
 		return NULL;
 		);
 
@@ -340,11 +368,15 @@ int dhtable_put(dhtable table, void *key, void *value) {
 	 * get the bucket, call backend->put,
 	 * return.
 	 */
-	DASSERT(_dhtable_valid(table), "Given invalid table.",
+	DASSERT(table != NULL, ICALLER, "Given NULL table.",
 		return 1;
 		);
 
-	DASSERT(key != NULL, "Given invalid key.",
+	DASSERT(_dhtable_valid(table), IINTRA, "Given invalid table.",
+		return 1;
+		);
+
+	DASSERT(key != NULL, ICALLER, "Given invalid key.",
 		return 1;
 		);
 
@@ -357,7 +389,7 @@ int dhtable_put(dhtable table, void *key, void *value) {
 	if (bucket == NULL) {
 		bucket = table->backend->init(&table->kv_data);
 
-		DASSERT(bucket != NULL, "Failed to create a bucket.",
+		DASSERT(bucket != NULL, IBACKEND, "Failed to create a bucket.",
 			return 1;
 			);
 
@@ -379,11 +411,15 @@ int dhtable_rm (dhtable table, void *key) {
 	 * the bucket, call the backend,
 	 * return.
 	 */
-	DASSERT(_dhtable_valid(table), "Given invalid table.",
+	DASSERT(table != NULL, ICALLER, "Given NULL table.",
 		return 1;
 		);
 
-	DASSERT(key != NULL, "Given invalid key.",
+	DASSERT(_dhtable_valid(table), IINTRA, "Given invalid table.",
+		return 1;
+		);
+
+	DASSERT(key != NULL, ICALLER, "Given invalid key.",
 		return 1;
 		);
 
@@ -402,7 +438,15 @@ int dhtable_rm (dhtable table, void *key) {
 /* Returns the element count. */
 size_t dhtable_size(dhtable table) {
 
-	DASSERT(_dhtable_valid(table), "Given invalid table.",
+	/* Validate the table, for each bucket,
+	 * get the number of elements,
+	 * return sum.
+	 */
+	DASSERT(table != NULL, ICALLER, "Given NULL table.",
+		return 0;
+		);
+
+	DASSERT(_dhtable_valid(table), IINTRA, "Given invalid table.",
 		return 0;
 		);
 
@@ -428,7 +472,11 @@ size_t dhtable_key_size(dhtable table) {
 	/* Validate the table,
 	 * return the key size.
 	 */
-	DASSERT(_dhtable_valid(table), "Given invalid table.",
+	DASSERT(table != NULL, ICALLER, "Given NULL table.",
+		return 0;
+		);
+
+	DASSERT(_dhtable_valid(table), IINTRA, "Given invalid table.",
 		return 0;
 		);
 
@@ -441,7 +489,11 @@ size_t dhtable_val_size(dhtable table) {
 	/* Validate the table,
 	 * return the value size.
 	 */
-	DASSERT(_dhtable_valid(table), "Given invalid table.",
+	DASSERT(table != NULL, ICALLER, "Given NULL table.",
+		return 0;
+		);
+
+	DASSERT(_dhtable_valid(table), IINTRA, "Given invalid table.",
 		return 0;
 		);
 
@@ -458,7 +510,15 @@ int dhtable_join(dhtable dst, dhtable src) {
 	 * joinable, for each bucket,
 	 * attempt backend->join, return.
 	 */
-	DASSERT(_dhtable_joinable(dst, src), "Given unjoinable tables.",
+	DASSERT(dst != NULL, ICALLER, "Given NULL destination table.",
+		return 1;
+		);
+
+	DASSERT(src != NULL, ICALLER, "Given NULL source table.",
+		return 1;
+		);
+
+	DASSERT(_dhtable_joinable(dst, src), ICALLER, "Given unjoinable tables.",
 		return 1;
 		);
 
@@ -482,13 +542,13 @@ int dhtable_join(dhtable dst, dhtable src) {
 			dbuckets[i] = dbucket;
 		}
 
-		DASSERT(dbucket != NULL, "Failed to create a bucket.",
+		DASSERT(dbucket != NULL, IBACKEND, "Failed to create a bucket.",
 			return 1;
 			);
 
 		int t = dst->backend->join(&dst->kv_data, dbucket, sbucket);
 
-		DASSERT(t == 0, "Failed to join two buckets.",
+		DASSERT(t == 0, IBACKEND, "Failed to join two buckets.",
 			return 1;
 			);
 	}

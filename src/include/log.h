@@ -20,16 +20,16 @@
 /* Message priority. "Inspired" by syslog. */
 enum log_priority {
 
-	EEMERG  , /* *gurgling blood*           */
-	EALERT  , /* Halp!!!                    */
-	ECRIT   , /* Halpppp.                   */
-	EERR    , /* Error happened.            */
-	EWARNING, /* Something fishy.           */
-	ENOTICE , /* Status report.             */
-	EINFO   , /* Just-letting-you-know      */
-	EDEBUG,   /* *rambles on to self*       */
+	EEMERG   = 0x01, /* *gurgling blood*           */
+	EALERT   = 0x02, /* Halp!!!                    */
+	ECRIT    = 0x03, /* Halpppp.                   */
+	EERR     = 0x04, /* Error happened.            */
+	EWARNING = 0x05, /* Something fishy.           */
+	ENOTICE  = 0x06, /* Status report.             */
+	EINFO    = 0x07, /* Just-letting-you-know      */
+	EDEBUG   = 0x08, /* *rambles on to self*       */
 
-	ENONE     /* Unknown priority.          */
+	ENONE    = 0x09  /* Unknown priority.          */
 };
 
 

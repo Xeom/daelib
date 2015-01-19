@@ -61,6 +61,16 @@ struct dhtable_backend dhtable_vector = {
 };
 
 
+/* Default error behaviour. */
+#ifndef IHASHTABLE /* When fed bad data. */
+#define IHASHTABLE DLOG
+#endif /* IHASHTABLE */
+
+#ifndef IVECTOR /* When the vector fails. */
+#define IVECTOR DLOG
+#endif /* IVECTOR */
+
+
 /* A note on assertions:
  * Hashtable and vector each have
  * their own assertions on their
@@ -142,7 +152,7 @@ static int _dhtable_vector_search(dhtable_ctx *ctx, dvec vec, void *key) {
 
 		char *t = dvec_get(vec, i);
 
-		DASSERT(t != NULL, "Failed to get element.",
+		DASSERT(t != NULL, IVECTOR, "Failed to get element.",
 			return -1;
 			);
 
@@ -158,11 +168,11 @@ static int _dhtable_vector_search(dhtable_ctx *ctx, dvec vec, void *key) {
  * a map element.
  */
 static int _dhtable_vector_replace(dhtable_ctx *ctx, dvec vec,
-                                   void *value, int t) {
+                                   int index, void *value) {
 
-	char *elem = (char*) dvec_get(vec, t);
+	char *elem = (char*) dvec_get(vec, index);
 
-	DASSERT(elem != NULL, "Failed to get element.",
+	DASSERT(elem != NULL, IVECTOR, "Failed to get element.",
 		return 1;
 		);
 
@@ -185,7 +195,7 @@ static int _dhtable_vector_push(dhtable_ctx *ctx, dvec vec,
 	 */
 	size_t size = dvec_elem_size(vec);
 
-	DASSERT(size != 0, "Received invalid elem_size.",
+	DASSERT(size != 0, IVECTOR, "Received invalid elem_size.",
 		return 1;
 		);
 
@@ -205,7 +215,7 @@ void *dhtable_vector_init(dhtable_ctx *ctx) {
 	/* Validate ctx, init vector,
 	 * return.
 	 */
-	DASSERT(_dhtable_ctx_valid(ctx) != 0, "Given invalid context.",
+	DASSERT(_dhtable_ctx_valid(ctx), IHASHTABLE, "Given invalid context.",
 		return NULL;
 		);
 
@@ -246,24 +256,24 @@ void *dhtable_vector_get(dhtable_ctx *ctx, void *bucket, void *key) {
 	 * search for element, get element,
 	 * verify, get val, return.
 	 */
-	DASSERT(_dhtable_ctx_valid(ctx), "Given invalid context.",
+	DASSERT(_dhtable_ctx_valid(ctx), IHASHTABLE, "Given invalid context.",
 		return NULL;
 		);
 
-	DASSERT(key != NULL, "Given invalid key.",
+	DASSERT(key != NULL, IHASHTABLE, "Given invalid key.",
 		return NULL;
 		);
 
 	dvec vec = (dvec) bucket;
 
-	int t = _dhtable_vector_search(ctx, vec, key);
+	int index = _dhtable_vector_search(ctx, vec, key);
 
-	if (t < 0)
+	if (index < 0)
 		return NULL;
 
-	char *r = (char*) dvec_get(vec, t);
+	char *r = (char*) dvec_get(vec, index);
 
-	DASSERT(r != NULL, "Failed to get element.",
+	DASSERT(r != NULL, IVECTOR, "Failed to get element.",
 		return NULL;
 		);
 
@@ -282,15 +292,16 @@ int dhtable_vector_put(dhtable_ctx *ctx, void *bucket,
 	 * value or push new key, value.
 	 * return.
 	 */
-	DASSERT(_dhtable_ctx_valid(ctx), "Given invalid context.",
+	DASSERT(_dhtable_ctx_valid(ctx), IHASHTABLE, "Given invalid context.",
 		return 1;
 		);
 
-	DASSERT(key != NULL, "Given invalid key.",
+	DASSERT(key != NULL, IHASHTABLE, "Given invalid key.",
 		return 1;
 		);
 
-	DASSERT((ctx->val_size == 0) || value != NULL, "Given invalid value.",
+	DASSERT((ctx->val_size == 0) || value != NULL, IHASHTABLE,
+		"Given invalid value.",
 		return 1;
 		);
 
@@ -300,7 +311,7 @@ int dhtable_vector_put(dhtable_ctx *ctx, void *bucket,
 
 	int t;
 	if (index >= 0) {
-		t = _dhtable_vector_replace(ctx, vec, value, index);
+		t = _dhtable_vector_replace(ctx, vec, index, value);
 	} else {
 		t = _dhtable_vector_push(ctx, vec, key, value);
 	}
@@ -317,11 +328,11 @@ int dhtable_vector_rm(dhtable_ctx *ctx, void *bucket, void *key) {
 	 * get size, search,
 	 * call remove, return.
 	 */
-	DASSERT(_dhtable_ctx_valid(ctx), "Given invalid context.",
+	DASSERT(_dhtable_ctx_valid(ctx), IHASHTABLE, "Given invalid context.",
 		return 1;
 		);
 
-	DASSERT(key != NULL, "Given invalid key.",
+	DASSERT(key != NULL, IHASHTABLE, "Given invalid key.",
 		return 1;
 		);
 
@@ -343,7 +354,7 @@ int dhtable_vector_join(dhtable_ctx *ctx, void *dst, void *src) {
 	 * for each element, search dst,
 	 * if there, replace, else, put.
 	 */
-	DASSERT(_dhtable_ctx_valid(ctx), "Given invalid context.",
+	DASSERT(_dhtable_ctx_valid(ctx), IHASHTABLE, "Given invalid context.",
 		return 1;
 		);
 
@@ -357,7 +368,7 @@ int dhtable_vector_join(dhtable_ctx *ctx, void *dst, void *src) {
 
 		char *elem = dvec_get(srcvec, i);
 
-		DASSERT(elem != NULL, "Failed to get element.",
+		DASSERT(elem != NULL, IVECTOR, "Failed to get element.",
 			return 1;
 			);
 
@@ -370,7 +381,7 @@ int dhtable_vector_join(dhtable_ctx *ctx, void *dst, void *src) {
 		if (index < 0) {
 			t = _dhtable_vector_push(ctx, dstvec, key, value);
 		} else {
-			t = _dhtable_vector_replace(ctx, dstvec, value, index);
+			t = _dhtable_vector_replace(ctx, dstvec, index, value);
 		}
 
 		if (t != 0)

@@ -31,6 +31,19 @@ struct _log_logger {
 static dvec _log_loggers = NULL;
 
 
+/* Default error behaviour. */
+#ifndef ICALLER /* When fed bad data. */
+#define ICALLER DLOG
+#endif /* ICALLER */
+
+#ifndef IALLOC /* When malloc() fails. */
+#define IALLOC DLOG
+#endif /* IALLOC */
+
+#ifndef IVECTOR /* When the vector fails. */
+#define IVECTOR DLOG
+#endif /* IVECTOR */
+
 
 /* Initialize the logging system.
  * Returns nonzero on error.
@@ -45,8 +58,8 @@ int dlog_init(void) {
 	if (_log_loggers == NULL)
 		_log_loggers = dvec_init(sizeof(struct _log_logger));
 
-	DASSERT_NL(_log_loggers != NULL, "Failed to create _log_loggers.",
-		   return 1;
+	DASSERT(_log_loggers != NULL, IALLOC, "Failed to create _log_loggers.",
+		return 1;
 		);
 
 	return 0;
@@ -61,9 +74,9 @@ int dlog_add(logger logger, enum log_priority min_priority, void *ctx) {
 	 * build a new logger instance,
 	 * push to vector, return.
 	 */
-	DASSERT_NL(_log_loggers != NULL,
-		   "Log is uninitialized.",
-		   return 1;
+	DASSERT(_log_loggers != NULL, ICALLER,
+		"Log is uninitialized.",
+		return 1;
 		);
 
 	struct _log_logger new_instance;
@@ -73,8 +86,8 @@ int dlog_add(logger logger, enum log_priority min_priority, void *ctx) {
 
 	int t = dvec_push(_log_loggers, &new_instance);
 
-	DASSERT_NL(t == 0, "Failed to push new logger.",
-		   return 1;
+	DASSERT(t == 0, IVECTOR, "Failed to push new logger.",
+		return 1;
 		);
 
 	return 0;
@@ -91,9 +104,9 @@ int dlog_rm(logger logger, void *ctx) {
 	 * available loggers, if
 	 * found, remove.
 	 */
-	DASSERT_NL(_log_loggers != NULL,
-		   "Log is uninitialized.",
-		   return 1;
+	DASSERT(_log_loggers != NULL, ICALLER,
+		"Log is uninitialized.",
+		return 1;
 		);
 
 	size_t count = dvec_size(_log_loggers);
@@ -108,9 +121,9 @@ int dlog_rm(logger logger, void *ctx) {
 			break;
 	}
 
-	DASSERT_NL(i != count,
-		   "Cannot find logger to remove.",
-		   return 1;
+	DASSERT(i != count, ICALLER,
+		"Cannot find logger to remove.",
+		return 1;
 		);
 
 	return dvec_rm(_log_loggers, i);
@@ -130,8 +143,8 @@ int dlog(enum log_priority priority, const char *path,
 	 * the loggers, call when
 	 * appropriate, return.
 	 */
-	DASSERT_NL(_log_loggers != NULL, "Log is uninitialized.",
-		   return 1;
+	DASSERT(_log_loggers != NULL, ICALLER, "Log is uninitialized.",
+		return 1;
 		);
 
 	va_list args;
@@ -149,6 +162,10 @@ int dlog(enum log_priority priority, const char *path,
 
 		struct _log_logger *t = (struct _log_logger*)
 		                        dvec_get(_log_loggers, i);
+
+		DASSERT(t != NULL, IVECTOR, "Failed to get logger. Continuing.",
+			continue;
+			);
 
 		if (priority > t->min_priority)
 			break;
@@ -171,8 +188,8 @@ int dlog_kill(void) {
 		return 0;
 
 	int t = dvec_kill(_log_loggers);
-	DASSERT_NL(t == 0, "Failed to kill _log_loggers.",
-		   return 1;
+	DASSERT(t == 0, IVECTOR, "Failed to kill _log_loggers.",
+		return 1;
 		);
 
 	_log_loggers = NULL;
