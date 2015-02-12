@@ -11,4 +11,3 @@ Notes
 * Includes a global logger, dlog.
 * The logger is used by various containers.
 * *_init() and *_kill() do memory management.
-

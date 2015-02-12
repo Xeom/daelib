@@ -33,15 +33,15 @@ static dvec _log_loggers = NULL;
 
 /* Default error behaviour. */
 #ifndef ICALLER /* When fed bad data. */
-#define ICALLER DLOG
+#define ICALLER DSLOG
 #endif /* ICALLER */
 
 #ifndef IALLOC /* When malloc() fails. */
-#define IALLOC DLOG
+#define IALLOC DSLOG
 #endif /* IALLOC */
 
 #ifndef IVECTOR /* When the vector fails. */
-#define IVECTOR DLOG
+#define IVECTOR DSLOG
 #endif /* IVECTOR */
 
 

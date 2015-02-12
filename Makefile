@@ -18,6 +18,8 @@ targets:
 	@echo ' libdae.so  | Build the shared library.                   '
 	@echo ' libdae.a   | Build the statically linked library.        '
 	@echo ' examples   | Build all examples.                         '
+	@echo ' install    | Install daelib onto the host system.        '
+	@echo ' uninstall  | remove daelib from the host system.         '
 	@echo ' targets    | List targets and descriptions.              '
 	@echo ' help       | Help message.                               '
 	@echo ' clean      | Clean the repository.                       '
@@ -45,7 +47,8 @@ TEST=$(SRC)/test
 PREFIX=/usr
 
 # CC flags.
-LIBS=
+LIBLIST=
+LIBS= $(addprefix -l, $LIBLIST)
 
 CC_FLAGS= -I$(INC) -g -Wall
 OBJ_FLAGS=$(CC_FLAGS) -c -fPIC
